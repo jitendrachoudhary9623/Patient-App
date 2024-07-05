@@ -279,6 +279,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
           name="phone"
           value={formData.phone}
           onChange={handleInputChange}
+          required
         />
       </div>
 
