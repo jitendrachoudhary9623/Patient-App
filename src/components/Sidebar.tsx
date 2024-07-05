@@ -19,10 +19,10 @@ const navItems: NavItem[] = [
   { name: 'Calendar', href: '/calendar', icon: HiOutlineCalendar },
   {
     name: 'Patient', href: '/patients', icon: HiOutlineUser,
-    children: [
-      { name: 'List', href: '/patients/list', icon: HiOutlineUser },
-      { name: 'Profile', href: '/patients/profile', icon: HiOutlineUser }
-    ]
+    // children: [
+    //   { name: 'List', href: '/patients/list', icon: HiOutlineUser },
+    //   { name: 'Profile', href: '/patients/profile', icon: HiOutlineUser }
+    // ]
   },
   { name: 'Reports', href: '/reports', icon: HiOutlineChartBar },
   {

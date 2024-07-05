@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTable, useSortBy, useGlobalFilter, usePagination } from 'react-table';
 import { useRouter } from 'next/navigation';
 import { HiSearch, HiPlus, HiChevronDown, HiChevronUp, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
+import { debounce } from 'lodash';
 
 interface Name {
   given?: string[];
@@ -122,7 +123,14 @@ export default function PatientListPage() {
     },
     { 
       Header: 'Address', 
-      accessor: (row: Patient) => row.resource.address?.[0] ? `${row.resource.address[0].city || ''}, ${row.resource.address[0].state || ''}`.trim() : 'Unknown',
+      accessor: (row: Patient) => {
+        const addressParts = [
+          row.resource.address?.[0]?.city,
+          row.resource.address?.[0]?.state,
+        ].filter(part => !!part); // Remove all empty values
+        const address = addressParts.join(','); // Join by ', '
+        return address || '-'; // If result is empty, show '-'
+      },
       Cell: ({ value, row }: { value: string; row: { original: Patient } }) => (
         <div 
           className="cursor-pointer"
@@ -175,9 +183,25 @@ export default function PatientListPage() {
     usePagination
   );
 
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+
+  // Debounce searchTerm update
   useEffect(() => {
-    fetchPatients(pageIndex, pageSize, searchTerm);
-  }, [pageIndex, pageSize, searchTerm]);
+    const handler = debounce((nextValue) => {
+      setDebouncedSearchTerm(nextValue);
+    }, 300); // 300ms debounce time
+
+    handler(searchTerm);
+
+    // Cleanup function to cancel the debounce on component unmount or when searchTerm changes
+    return () => {
+      handler.cancel();
+    };
+  }, [searchTerm]);
+
+  useEffect(() => {
+    fetchPatients(pageIndex, pageSize,debouncedSearchTerm);
+  }, [pageIndex, pageSize,debouncedSearchTerm ]);
 
   useEffect(() => {
     if (searchTerm) {
