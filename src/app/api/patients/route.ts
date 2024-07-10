@@ -55,54 +55,83 @@ export async function GET(request: NextRequest) {
 
 
 export async function POST(request: NextRequest) {
-    const patientData = await request.json();
-  
-    try {
-      const response = await fetch(`${FHIR_SERVER}/Patient`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/fhir+json'
-        },
-        body: JSON.stringify(patientData),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to create patient');
-      }
-  
-      const data = await response.json();
-      return NextResponse.json(data, { status: 201 });
-    } catch (error) {
-      console.error('Error creating patient:', error);
-      return NextResponse.json({ error: 'Failed to create patient' }, { status: 500 });
+  const patientData = await request.json();
+
+  try {
+    const response = await fetch(`${FHIR_SERVER}/Patient`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/fhir+json'
+      },
+      body: JSON.stringify(patientData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create patient');
     }
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    console.error('Error creating patient:', error);
+    return NextResponse.json({ error: 'Failed to create patient' }, { status: 500 });
   }
-  
-  export async function PUT(request: NextRequest) {
-    const patientData = await request.json();
-    const { id } = patientData;
-  
-    if (!id) {
-      return NextResponse.json({ error: 'Patient ID is required for updates' }, { status: 400 });
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { id } = params;
+  const patientData = await request.json();
+
+  try {
+    const response = await fetch(`${FHIR_SERVER}/Patient/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/fhir+json'
+      },
+      body: JSON.stringify(patientData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update patient');
     }
-  
-    try {
-      const response = await fetch(`${FHIR_SERVER}/Patient/${id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/fhir+json'
-        },
-        body: JSON.stringify(patientData),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to update patient');
-      }
-  
-      const data = await response.json();
-      return NextResponse.json(data);
-    } catch (error) {
-      console.error('Error updating patient:', error);
-      return NextResponse.json({ error: 'Failed to update patient' }, { status: 500 });
-    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error updating patient:', error);
+    return NextResponse.json({ error: 'Failed to update patient' }, { status: 500 });
   }
+}
+
+// export async function PUT(request: NextRequest) {
+//   const patientData = await request.json();
+//   console.log('patientData:', { patientData })
+//   const { id } = patientData;
+
+//   if (!id) {
+//     return NextResponse.json({ error: 'Patient ID is required for updates' }, { status: 400 });
+//   }
+
+//   try {
+//     const response = await fetch(`${FHIR_SERVER}/Patient/${id}`, {
+//       method: 'PUT',
+//       headers: {
+//         'Content-Type': 'application/fhir+json'
+//       },
+//       body: JSON.stringify(patientData),
+//     });
+
+//     if (!response.ok) {
+//       throw new Error('Failed to update patient');
+//     }
+
+//     const data = await response.json();
+//     return NextResponse.json(data);
+//   } catch (error) {
+//     console.error('Error updating patient:', error);
+//     return NextResponse.json({ error: 'Failed to update patient' }, { status: 500 });
+//   }
+// }
