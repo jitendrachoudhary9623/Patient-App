@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import type { Patient } from 'fhir/r4';
 
-const FHIR_SERVER = 'https://hapi.fhir.org/baseR4';
+const FHIR_SERVER = process.env.FHIR_SERVER;
 const DEFAULT_PAGE_SIZE = 10;
 
 
