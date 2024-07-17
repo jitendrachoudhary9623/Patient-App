@@ -86,11 +86,11 @@ export default function PatientListPage() {
   const columns = useMemo(() => [
     {
       Header: 'Patient',
-      accessor: (row: Patient) => getPatientName(row.resource.name),
-      Cell: ({ value, row }: { value: string; row: { original: Patient } }) => (
+      accessor: (row: PatientResource) => getPatientName(row?.name),
+      Cell: ({ value, row }: { value: string; row: { original: PatientResource } }) => (
         <div 
           className="flex items-center cursor-pointer"
-          onClick={() => router.push(`/patients/${row.original.resource.id}/edit`)}
+          onClick={() => router.push(`/patients/${row.original.id}/edit`)}
         >
           <img className="h-8 w-8 rounded-full mr-2" src={`https://ui-avatars.com/api/?name=${value}&background=random`} alt="" />
           {value}
@@ -99,11 +99,11 @@ export default function PatientListPage() {
     },
     { 
       Header: 'Gender', 
-      accessor: (row: Patient) => row.resource.gender || 'Unknown',
-      Cell: ({ value, row }: { value: string; row: { original: Patient } }) => (
+      accessor: (row: PatientResource) => row?.gender || 'Unknown',
+      Cell: ({ value, row }: { value: string; row: { original: PatientResource } }) => (
         <div 
           className="cursor-pointer"
-          onClick={() => router.push(`/patients/new/${row.original.resource.id}/edit`)}
+          onClick={() => router.push(`/patients/new/${row.original.id}/edit`)}
         >
           {value}
         </div>
@@ -111,11 +111,11 @@ export default function PatientListPage() {
     },
     { 
       Header: 'Date of Birth', 
-      accessor: (row: Patient) => row.resource.birthDate, 
-      Cell: ({ value, row }: { value: string; row: { original: Patient } }) => (
+      accessor: (row: PatientResource) => row?.birthDate, 
+      Cell: ({ value, row }: { value: string; row: { original: PatientResource } }) => (
         <div 
           className="cursor-pointer"
-          onClick={() => router.push(`/patients/new/${row.original.resource.id}/edit`)}
+          onClick={() => router.push(`/patients/new/${row.original.id}/edit`)}
         >
           {formatDate(value)}
         </div>
@@ -123,18 +123,18 @@ export default function PatientListPage() {
     },
     { 
       Header: 'Address', 
-      accessor: (row: Patient) => {
+      accessor: (row: PatientResource) => {
         const addressParts = [
-          row.resource.address?.[0]?.city,
-          row.resource.address?.[0]?.state,
+          row?.address?.[0]?.city,
+          row?.address?.[0]?.state,
         ].filter(part => !!part); // Remove all empty values
         const address = addressParts.join(','); // Join by ', '
         return address || '-'; // If result is empty, show '-'
       },
-      Cell: ({ value, row }: { value: string; row: { original: Patient } }) => (
+      Cell: ({ value, row }: { value: string; row: { original: PatientResource } }) => (
         <div 
           className="cursor-pointer"
-          onClick={() => router.push(`/patients/${row.original.resource.id}`)}
+          onClick={() => router.push(`/patients/${row.original.id}`)}
         >
           {value}
         </div>
@@ -142,11 +142,11 @@ export default function PatientListPage() {
     },
     { 
       Header: 'Last Updated', 
-      accessor: (row: Patient) => row.resource.meta?.lastUpdated, 
-      Cell: ({ value, row }: { value: string; row: { original: Patient } }) => (
+      accessor: (row: PatientResource) => row?.meta?.lastUpdated, 
+      Cell: ({ value, row }: { value: string; row: { original: PatientResource } }) => (
         <div 
           className="cursor-pointer"
-          onClick={() => router.push(`/patients/${row.original.resource.id}`)}
+          onClick={() => router.push(`/patients/${row.original.id}`)}
         >
           {formatDate(value)}
         </div>
@@ -189,7 +189,7 @@ export default function PatientListPage() {
   useEffect(() => {
     const handler = debounce((nextValue) => {
       setDebouncedSearchTerm(nextValue);
-    }, 300); // 300ms debounce time
+    }, 1000); // 300ms debounce time
 
     handler(searchTerm);
 

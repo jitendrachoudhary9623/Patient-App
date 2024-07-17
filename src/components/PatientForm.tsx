@@ -2,49 +2,40 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { HiSave, HiX, HiArrowLeft } from 'react-icons/hi';
+import { useForm, SubmitHandler, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { HiSave, HiX, HiQuestionMarkCircle } from 'react-icons/hi';
+
+const patientSchema = z.object({
+  givenName: z.string().min(1, 'Given name is required'),
+  familyName: z.string().min(1, 'Family name is required'),
+  gender: z.enum(['male', 'female', 'other'], { required_error: 'Gender is required' }),
+  birthDate: z.string().refine((date) => {
+    const birthDate = new Date(date);
+    const today = new Date();
+    return birthDate < today && (today.getFullYear() - birthDate.getFullYear()) <= 120;
+  }, { message: 'Invalid date of birth' }),
+  phone: z.string().regex(/^\+?[0-9()-\s]+$/, 'Invalid phone number format'),
+  email: z.string().email('Invalid email format').optional().or(z.literal(''))
+});
+
+type PatientFormData = z.infer<typeof patientSchema>;
 
 interface PatientFormProps {
-  patientId?: string; // If provided, we're in edit mode
+  patientId?: string;
 }
-
-interface PatientFormData {
-  givenName: string;
-  familyName: string;
-  gender: string;
-  birthDate: string;
-  phone: string;
-  email: string;
-  address: {
-    line1: string;
-    city: string;
-    state: string;
-    postalCode: string;
-  };
-}
-
-const initialFormData: PatientFormData = {
-  givenName: '',
-  familyName: '',
-  gender: '',
-  birthDate: '',
-  phone: '',
-  email: '',
-  address: {
-    line1: '',
-    city: '',
-    state: '',
-    postalCode: '',
-  },
-};
 
 const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
-  const [formData, setFormData] = useState<PatientFormData>(initialFormData);
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const router = useRouter();
+  const { control, handleSubmit, reset, formState: { errors, isSubmitting, isDirty, isValid } } = useForm<PatientFormData>({
+    resolver: zodResolver(patientSchema),
+    mode: 'onChange',
+  });
 
   useEffect(() => {
     if (patientId) {
@@ -58,7 +49,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
       const response = await fetch(`/api/patients?id=${patientId}`);
       if (!response.ok) throw new Error('Failed to fetch patient data');
       const patientData = await response.json();
-      setFormData({
+      reset({
         givenName: patientData.name?.[0]?.given?.join(' ') || '',
         familyName: patientData.name?.[0]?.family || '',
         gender: patientData.gender || '',
@@ -79,101 +70,32 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    if (name.startsWith('address.')) {
-      const addressField = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        address: {
-          ...prev.address,
-          [addressField]: value,
-        },
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    // Reset error before validation
-    setError(null);
-
-    // Name validations
-    if (!/^[a-zA-Z\s-']+$/.test(formData.givenName)) {
-      setError('Given name should contain only letters, spaces, hyphens, or apostrophes');
-      return false;
-    }
-    if (!/^[a-zA-Z\s-']+$/.test(formData.familyName)) {
-      setError('Family name should contain only letters, spaces, hyphens, or apostrophes');
-      return false;
-    }
-
-    // Date of birth validation
-    const birthDate = new Date(formData.birthDate);
-    const today = new Date();
-    if (birthDate > today) {
-      setError('Date of birth cannot be in the future');
-      return false;
-    }
-    if (today.getFullYear() - birthDate.getFullYear() > 120) {
-      setError('Invalid date of birth. Age cannot exceed 120 years');
-      return false;
-    }
-
-    // Phone number validation (basic format check)
-    if (formData.phone && !/^\+?[0-9()-\s]+$/.test(formData.phone)) {
-      setError('Invalid phone number format');
-      return false;
-    }
-
-    // Email validation
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('Invalid email format');
-      return false;
-    }
-
-    // Postal code validation (basic format check, adjust as needed)
-    if (formData.address.postalCode && !/^[0-9]{5}(-[0-9]{4})?$/.test(formData.address.postalCode)) {
-      setError('Invalid postal code format');
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit: SubmitHandler<PatientFormData> = async (data) => {
     setLoading(true);
     setError(null);
-
-    if (!validateForm()) {
-      setLoading(false);
-      return;
-    }
 
     const patientData = {
       resourceType: 'Patient',
       name: [
         {
           use: 'official',
-          family: formData.familyName,
-          given: [formData.givenName],
+          family: data.familyName,
+          given: [data.givenName],
         },
       ],
-      gender: formData.gender,
-      birthDate: formData.birthDate,
+      gender: data.gender,
+      birthDate: data.birthDate,
       telecom: [
-        { system: 'phone', value: formData.phone },
-        { system: 'email', value: formData.email },
+        { system: 'phone', value: data.phone },
+        { system: 'email', value: data.email },
       ],
       address: [
         {
           use: 'home',
-          line: [formData.address.line1],
-          city: formData.address.city,
-          state: formData.address.state,
-          postalCode: formData.address.postalCode,
+          line: [data?.address?.line1],
+          city: data?.address?.city,
+          state: data?.address?.state,
+          postalCode: data?.address?.postalCode,
         },
       ],
     };
@@ -181,11 +103,6 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
     try {
       const url = patientId ? `/api/patients/${patientId}` : '/api/patients';
       const method = patientId ? 'PUT' : 'POST';
-      console.log({
-        url,
-        method,
-        patientData,
-      })
       const response = await fetch(url, {
         method,
         headers: {
@@ -196,12 +113,8 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
 
       if (!response.ok) throw new Error('Failed to save patient data');
 
-      if (patientId) {
-        setMessage('Patient data updated successfully');
-      }else {
-        router.push('/patients'); // Redirect to patient list after successful save
-
-      }
+      setMessage(patientId ? 'Patient data updated successfully' : 'Patient data saved successfully');
+      setTimeout(() => router.push('/patients'), 2000);
     } catch (err) {
       setError('Failed to save patient data. Please try again.');
     } finally {
@@ -209,184 +122,168 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white shadow-md rounded px-6 pt-4 pb-6 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 md:col-span-2" role="alert">{error}</div>}
-      {message && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 md:col-span-2" role="alert">{message}</div>}
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="givenName">
-          Given Name
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="givenName"
-          type="text"
-          name="givenName"
-          value={formData.givenName}
-          onChange={handleInputChange}
-          required
-        />
-      </div>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-white shadow-lg rounded-lg px-8 pt-6 pb-8 mb-4">
+        <h2 className="text-3xl font-bold mb-6 text-center text-blue-600 border-b pb-4">
+          {patientId ? 'Update Patient Information' : 'New Patient Registration'}
+        </h2>
+        {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">{error}</div>}
+        {message && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">{message}</div>}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <InputField
+            control={control}
+            name="givenName"
+            label="Given Name"
+            type="text"
+            required
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="familyName"
+            label="Family Name"
+            type="text"
+            required
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="gender"
+            label="Gender"
+            type="select"
+            options={[
+              { value: 'male', label: 'Male' },
+              { value: 'female', label: 'Female' },
+              { value: 'other', label: 'Other' },
+            ]}
+            required
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="birthDate"
+            label="Date of Birth"
+            type="date"
+            required
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="phone"
+            label="Phone"
+            type="tel"
+            required
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="email"
+            label="Email"
+            type="email"
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="address.line1"
+            label="Address Line"
+            type="text"
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="address.city"
+            label="City"
+            type="text"
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="address.state"
+            label="State"
+            type="text"
+            errors={errors}
+          />
+          <InputField
+            control={control}
+            name="address.postalCode"
+            label="Postal Code"
+            type="text"
+            errors={errors}
+          />
+        </div>
 
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="familyName">
-          Family Name
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="familyName"
-          type="text"
-          name="familyName"
-          value={formData.familyName}
-          onChange={handleInputChange}
-          required
-        />
-      </div>
-
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="gender">
-          Gender
-        </label>
-        <select
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="gender"
-          name="gender"
-          value={formData.gender}
-          onChange={handleInputChange}
-          required
-        >
-          <option value="">Select Gender</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="birthDate">
-          Date of Birth
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="birthDate"
-          type="date"
-          name="birthDate"
-          value={formData.birthDate}
-          onChange={handleInputChange}
-          required
-          max={new Date().toISOString().split('T')[0]} // Set max date to today
-        />
-      </div>
-
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="phone">
-          Phone
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="phone"
-          type="tel"
-          name="phone"
-          value={formData.phone}
-          onChange={handleInputChange}
-          required
-        />
-      </div>
-
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="email">
-          Email
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="email"
-          type="email"
-          name="email"
-          value={formData.email}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div className="mb-2 md:col-span-2">
-        <label className="block text-gray-700 mb-1" htmlFor="address.line1">
-          Address Line 1
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="address.line1"
-          type="text"
-          name="address.line1"
-          value={formData.address.line1}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="address.city">
-          City
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="address.city"
-          type="text"
-          name="address.city"
-          value={formData.address.city}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div className="mb-2">
-        <label className="block text-gray-700 mb-1" htmlFor="address.state">
-          State
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="address.state"
-          type="text"
-          name="address.state"
-          value={formData.address.state}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div className="mb-4">
-        <label className="block text-gray-700 mb-1" htmlFor="address.postalCode">
-          Postal Code
-        </label>
-        <input
-          className="shadow appearance-none border rounded w-full py-1 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          id="address.postalCode"
-          type="text"
-          name="address.postalCode"
-          value={formData.address.postalCode}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div className="flex items-center justify-between md:col-span-2">
-        <button
-          className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline flex items-center"
-          type="button"
-          onClick={() => router.push('/patients')}
-        >
-          <HiX className="mr-1" />
-          Cancel
-        </button>
-        <div className="flex space-x-2">
+        <div className="flex items-center justify-between mt-8 border-t pt-6">
           <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline flex items-center"
-            type="submit"
-            disabled={loading}
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full focus:outline-none focus:shadow-outline flex items-center transition duration-300 ease-in-out"
+            type="button"
+            onClick={() => router.push('/patients')}
           >
-            <HiSave className="mr-1" />
-            {loading ? patientId ? 'Updating.. ' : 'Saving...' : patientId ? 'Update Patient' : 'Save Patient'}
+            <HiX className="mr-2" />
+            Cancel
+          </button>
+          <button
+            className={`${isDirty && isValid ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-full focus:outline-none focus:shadow-outline flex items-center transition duration-300 ease-in-out`}
+            type="submit"
+            disabled={isSubmitting || !isDirty || !isValid}
+          >
+            <HiSave className="mr-2" />
+            {isSubmitting ? 'Saving...' : (patientId ? 'Update Patient' : 'Save Patient')}
           </button>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 };
+
+interface InputFieldProps {
+  control: any;
+  name: string;
+  label: string;
+  type: string;
+  required?: boolean;
+  options?: { value: string; label: string }[];
+  errors: any;
+}
+
+const InputField: React.FC<InputFieldProps> = ({ control, name, label, type, required, options, errors }) => (
+  <div className="mb-4">
+    <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor={name}>
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        type === 'select' ? (
+          <select
+            {...field}
+            className={`shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[name] ? 'border-red-500' : 'border-gray-300'}`}
+            id={name}
+          >
+            <option value="">Select {label}</option>
+            {options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            {...field}
+            className={`shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[name] ? 'border-red-500' : 'border-gray-300'}`}
+            id={name}
+            type={type}
+            max={type === 'date' ? new Date().toISOString().split('T')[0] : undefined}
+          />
+        )
+      )}
+    />
+    {errors[name] && <p className="text-red-500 text-xs italic mt-1">{errors[name].message}</p>}
+  </div>
+);
 
 export default PatientForm;

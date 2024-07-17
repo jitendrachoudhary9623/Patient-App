@@ -86,7 +86,7 @@ export default function PatientListPage() {
   const columns = useMemo(() => [
     {
       Header: 'Patient',
-      accessor: (row: Patient) => getPatientName(row.resource.name),
+      accessor: (row: Patient) => getPatientName(row?.resource?.name),
       Cell: ({ value, row }: { value: string; row: { original: Patient } }) => (
         <div 
           className="flex items-center cursor-pointer"

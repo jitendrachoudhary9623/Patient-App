@@ -1,38 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
+import { PatientService } from '../../../../services/PatientService';
 import type { Patient } from 'fhir/r4';
 
-const FHIR_SERVER = process.env.FHIR_SERVER;
-const DEFAULT_PAGE_SIZE = 10;
+const patientService = new PatientService(process.env.FHIR_SERVER);
 
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  const patientData: Partial<Patient> = await request.json();
+  const { id } = params;
 
-export async function PUT(request: NextRequest, params: any) {
-  const patientData = await request.json();
-
-  const id  = params?.params?.id;
-  console.log('patientData:', { id })
+  console.log('patientData:', { id });
 
   if (!id) {
-    return NextResponse.json({ error: 'Patient ID is required for updates',params }, { status: 400 });
+    return NextResponse.json({ error: 'Patient ID is required for updates', params }, { status: 400 });
   }
 
   try {
-    const response = await fetch(`${FHIR_SERVER}/Patient/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/fhir+json'
-      },
-      body: JSON.stringify({...patientData, id}),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update patient 2');
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    const updatedPatient = await patientService.updatePatient(id, { ...patientData, id });
+    return NextResponse.json(updatedPatient);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: 'Failed to update patient', test: ""+error, patientData }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to update patient', 
+      details: error instanceof Error ? error.message : String(error),
+      patientData 
+    }, { status: 500 });
   }
 }
