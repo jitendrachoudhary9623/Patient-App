@@ -7,7 +7,7 @@ const DEFAULT_PAGE_SIZE = 10;
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const patientId = searchParams.get('id');
-
+  console.log('searchParams:', searchParams);
   try {
     if (patientId) {
       // Fetch single patient
@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       // Fetch multiple patients
       const search = searchParams.get('search') || '';
       const page = parseInt(searchParams.get('page') || '0', 10);
-      const { patients, total } = await patientService.getPatients(search, page);
+      const { patients, total } = await patientService.getPatients(search, page, DEFAULT_PAGE_SIZE);
+      
       return NextResponse.json({
         patients,
         total,

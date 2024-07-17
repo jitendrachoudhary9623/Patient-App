@@ -59,6 +59,7 @@ export default function PatientListPage() {
   const fetchPatients = async (pageIndex: number, pageSize: number, searchTerm: string) => {
     setLoading(true);
     try {
+      console.log(`/api/patients?search=${encodeURIComponent(searchTerm)}&page=${pageIndex + 1}&pageSize=${pageSize}`)
       const response = await fetch(`/api/patients?search=${encodeURIComponent(searchTerm)}&page=${pageIndex + 1}&pageSize=${pageSize}`);
       const result = await response.json();
       setData(result);
@@ -200,6 +201,11 @@ export default function PatientListPage() {
   }, [searchTerm]);
 
   useEffect(() => {
+    console.log({
+      pageIndex,
+      pageSize,
+      debouncedSearchTerm,
+    })
     fetchPatients(pageIndex, pageSize,debouncedSearchTerm);
   }, [pageIndex, pageSize,debouncedSearchTerm ]);
 

@@ -30,10 +30,12 @@ export class PatientService {
       }
     }
 
+    const offset = Math.max(0, (page - 1) * pageSize);
+
     const params = {
       _sort: '-_lastUpdated',
       _count: pageSize,
-      _offset: page * pageSize,
+      _offset: offset,
       _total: 'accurate',
       ...searchParams,
     };
