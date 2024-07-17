@@ -17,7 +17,13 @@ const patientSchema = z.object({
     return birthDate < today && (today.getFullYear() - birthDate.getFullYear()) <= 120;
   }, { message: 'Invalid date of birth' }),
   phone: z.string().regex(/^\+?[0-9()-\s]+$/, 'Invalid phone number format'),
-  email: z.string().email('Invalid email format').optional().or(z.literal(''))
+  email: z.string().email('Invalid email format').optional().or(z.literal('')),
+  address: z.object({
+    line1: z.string().min(1, 'Address line is required').optional().or(z.literal('')),
+    city: z.string().min(1, 'City is required').optional().or(z.literal('')),
+    state: z.string().min(1, 'State is required').optional().or(z.literal('')),
+    postalCode: z.string().min(1, 'Postal code is required').optional().or(z.literal('')),
+  }),
 });
 
 type PatientFormData = z.infer<typeof patientSchema>;
