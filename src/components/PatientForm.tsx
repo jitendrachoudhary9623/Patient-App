@@ -6,32 +6,10 @@ import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { HiSave, HiX, HiQuestionMarkCircle } from 'react-icons/hi';
-
-const nameRegex = /^[a-zA-Z-'. ]+$/; // Allow letters, hyphens, apostrophes, periods, and spaces
-const phoneRegex = /^\+?[0-9()\-.\s]{7,15}$/; // Allow optional leading +, digits, hyphens, parentheses, periods, and spaces. Length between 7 to 15 characters.
-
-const patientSchema = z.object({
-  givenName: z.string().min(1, 'Given name is required')
-                        .max(50, 'Given name must be less than 50 characters')
-                        .regex(nameRegex, 'Given name contains invalid characters'),
-  familyName: z.string().min(1, 'Family name is required')
-                        .max(50, 'Family name must be less than 50 characters')
-                        .regex(nameRegex, 'Family name contains invalid characters'),
-  gender: z.enum(['male', 'female', 'other'], { required_error: 'Gender is required' }),
-  birthDate: z.string().refine((date) => {
-    const birthDate = new Date(date);
-    const today = new Date();
-    return birthDate < today && (today.getFullYear() - birthDate.getFullYear()) <= 120;
-  }, { message: 'Invalid date of birth' }),
-  phone: z.string().regex(phoneRegex, 'Invalid phone number format'),
-  email: z.string().email('Invalid email format').optional().or(z.literal('')),
-  address: z.object({
-    line1: z.string().min(1, 'Address line is required').optional().or(z.literal('')),
-    city: z.string().min(1, 'City is required').optional().or(z.literal('')),
-    state: z.string().min(1, 'State is required').optional().or(z.literal('')),
-    postalCode: z.string().min(1, 'Postal code is required').optional().or(z.literal('')),
-  }),
-});
+import InputField from '@/components/elements/InputField';
+import useFetchPatientData from '@/hooks/useFetchPatientData';
+import useHandleFormSubmit from '@/hooks/useHandleFormSubmit';
+import patientSchema from '@/schemas/patientSchema';
 
 type PatientFormData = z.infer<typeof patientSchema>;
 
@@ -41,99 +19,13 @@ interface PatientFormProps {
 
 const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-
   const { control, handleSubmit, reset, formState: { errors, isSubmitting, isDirty, isValid } } = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
     mode: 'onChange',
   });
 
-  useEffect(() => {
-    if (patientId) {
-      fetchPatientData();
-    }
-  }, [patientId]);
-
-  const fetchPatientData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/patients?id=${patientId}`);
-      if (!response.ok) throw new Error('Failed to fetch patient data');
-      const patientData = await response.json();
-      reset({
-        givenName: patientData.name?.[0]?.given?.join(' ') || '',
-        familyName: patientData.name?.[0]?.family || '',
-        gender: patientData.gender || '',
-        birthDate: patientData.birthDate || '',
-        phone: patientData.telecom?.find((t: any) => t.system === 'phone')?.value || '',
-        email: patientData.telecom?.find((t: any) => t.system === 'email')?.value || '',
-        address: {
-          line1: patientData.address?.[0]?.line?.[0] || '',
-          city: patientData.address?.[0]?.city || '',
-          state: patientData.address?.[0]?.state || '',
-          postalCode: patientData.address?.[0]?.postalCode || '',
-        },
-      });
-    } catch (err) {
-      setError('Failed to load patient data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSubmit: SubmitHandler<PatientFormData> = async (data) => {
-    setLoading(true);
-    setError(null);
-
-    const patientData = {
-      resourceType: 'Patient',
-      name: [
-        {
-          use: 'official',
-          family: data.familyName,
-          given: [data.givenName],
-        },
-      ],
-      gender: data.gender,
-      birthDate: data.birthDate,
-      telecom: [
-        { system: 'phone', value: data.phone },
-        { system: 'email', value: data.email },
-      ],
-      address: [
-        {
-          use: 'home',
-          line: [data?.address?.line1],
-          city: data?.address?.city,
-          state: data?.address?.state,
-          postalCode: data?.address?.postalCode,
-        },
-      ],
-    };
-
-    try {
-      const url = patientId ? `/api/patients/${patientId}` : '/api/patients';
-      const method = patientId ? 'PUT' : 'POST';
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(patientData),
-      });
-
-      if (!response.ok) throw new Error('Failed to save patient data');
-
-      setMessage(patientId ? 'Patient data updated successfully' : 'Patient data saved successfully');
-      setTimeout(() => router.push('/patients'), 2000);
-    } catch (err) {
-      setError('Failed to save patient data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { loading, error } = useFetchPatientData(patientId, reset);
+  const { onSubmit, message } = useHandleFormSubmit(patientId, router);
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
 
@@ -252,51 +144,5 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
   );
 };
 
-interface InputFieldProps {
-  control: any;
-  name: string;
-  label: string;
-  type: string;
-  required?: boolean;
-  options?: { value: string; label: string }[];
-  errors: any;
-}
-
-const InputField: React.FC<InputFieldProps> = ({ control, name, label, type, required, options, errors }) => (
-  <div className="mb-4">
-    <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor={name}>
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <Controller
-      name={name}
-      control={control}
-      render={({ field }) => (
-        type === 'select' ? (
-          <select
-            {...field}
-            className={`shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[name] ? 'border-red-500' : 'border-gray-300'}`}
-            id={name}
-          >
-            <option value="">Select {label}</option>
-            {options?.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            {...field}
-            className={`shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[name] ? 'border-red-500' : 'border-gray-300'}`}
-            id={name}
-            type={type}
-            max={type === 'date' ? new Date().toISOString().split('T')[0] : undefined}
-          />
-        )
-      )}
-    />
-    {errors[name] && <p className="text-red-500 text-xs italic mt-1">{errors[name].message}</p>}
-  </div>
-);
-
 export default PatientForm;
+
