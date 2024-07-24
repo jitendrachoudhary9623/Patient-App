@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useCallback, useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useCallback } from 'react';
 import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import InputField from '@/components/elements/InputField';
 
 type ValidationRule = {
@@ -93,6 +93,7 @@ const createZodSchema = (formSchema: FormSchema) => {
               }
               break;
             case 'email':
+              console.log('fieldSchema:', "email",fieldSchema instanceof z.ZodString);
               if (fieldSchema instanceof z.ZodString) {
                 fieldSchema = fieldSchema.email(rule.message);
               }
@@ -121,37 +122,46 @@ const createZodSchema = (formSchema: FormSchema) => {
 
 const useDynamicForm = (formSchema: FormSchema) => {
   const zodSchema = createZodSchema(formSchema);
-  const [isDirtyState, setIsDirtyState] = useState(false);
-
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting, isDirty, isValid }, watch } = useForm({
+  const { control, handleSubmit, reset, formState } = useForm({
     resolver: zodResolver(zodSchema),
-    mode: 'onChange',
-    reValidateMode: 'onChange',
-    shouldUnregister: false,
+    mode: 'onChange'
   });
 
-  useEffect(() => {
-    const subscription = watch(() => {
-      setIsDirtyState(isDirty);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [isDirty, watch]);
-
   const renderFields = useCallback(() => {
-    let columnCount = 0;
+    const sections: React.ReactNode[] = [];
+    let currentSection: React.ReactNode[] = [];
     let currentRow: React.ReactNode[] = [];
-    const rows: React.ReactNode[] = [];
+    let columnsInCurrentRow = 0;
+    let totalColumns = 4; // Default to 4 columns
 
-    const flushRow = () => {
+    const startNewRow = () => {
       if (currentRow.length > 0) {
-        rows.push(
-          <div key={`row-${rows.length}`} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        currentSection.push(
+          <div key={`row-${currentSection.length}`} className={`grid grid-cols-${totalColumns} gap-4`}>
             {currentRow}
           </div>
         );
         currentRow = [];
-        columnCount = 0;
+        columnsInCurrentRow = 0;
+        totalColumns = 4; // Reset to default for the next row
+      }
+    };
+
+    const startNewSection = (label?: string) => {
+      startNewRow();
+      if (currentSection.length > 0 || label) {
+        sections.push(
+          <div key={`section-${sections.length}`} className="mb-6">
+            {label && (
+              <div className="col-span-full mt-6 mb-4">
+                <h3 className="text-lg font-semibold">{label}</h3>
+                <hr className="my-2" />
+              </div>
+            )}
+            {currentSection}
+          </div>
+        );
+        currentSection = [];
       }
     };
 
@@ -169,23 +179,19 @@ const useDynamicForm = (formSchema: FormSchema) => {
     formSchema.fields.forEach((field, index) => {
       switch (field.fieldtype) {
         case 'Section Break':
-          flushRow();
-          rows.push(
-            <div key={`section-${index}`} className="col-span-3 mt-6 mb-4">
-              <h3 className="text-lg font-semibold">{field.label}</h3>
-              <hr className="my-2" />
-            </div>
-          );
+          startNewSection(field.label);
           break;
         case 'Column Break':
-          columnCount++;
-          if (columnCount >= 3) {
-            flushRow();
-          }
+          columnsInCurrentRow++;
+          totalColumns = Math.max(totalColumns, columnsInCurrentRow);
           break;
         default:
+          const colSpan = field.fieldtype === 'Text Editor' ? totalColumns : 1;
+          if (columnsInCurrentRow + colSpan > totalColumns) {
+            startNewRow();
+          }
           const renderedField = (
-            <div key={field.fieldname || `field-${index}`} className="col-span-1">
+            <div key={field.fieldname || `field-${index}`} className={`col-span-${colSpan}`}>
               <InputField
                 control={control}
                 name={field.fieldname!}
@@ -199,28 +205,26 @@ const useDynamicForm = (formSchema: FormSchema) => {
                 }
                 required={!!field.reqd}
                 options={getOptions(field)}
-                errors={errors}
+                errors={formState.errors}
               />
             </div>
           );
           currentRow.push(renderedField);
-          columnCount++;
-          if (columnCount >= 3) {
-            flushRow();
-          }
+          columnsInCurrentRow += colSpan;
+          break;
       }
     });
 
-    flushRow();
+    startNewSection(); // Ensure any remaining fields are added
 
-    return <div className="w-full">{rows}</div>;
-  }, [formSchema, control, errors]);
+    return <div className="w-full space-y-4">{sections}</div>;
+  }, [formSchema, control, formState.errors]);
 
   return {
     control,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting, isDirty: isDirtyState, isValid },
+    formState,
     renderFields,
   };
 };
