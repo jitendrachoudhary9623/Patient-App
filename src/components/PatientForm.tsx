@@ -1,17 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, SubmitHandler, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { HiSave, HiX, HiQuestionMarkCircle } from 'react-icons/hi';
+import { HiSave, HiX } from '@/icons';
 import InputField from '@/components/elements/InputField';
 import useFetchPatientData from '@/hooks/useFetchPatientData';
 import useHandleFormSubmit from '@/hooks/useHandleFormSubmit';
-import patientSchema from '@/schemas/patientSchema';
-
-type PatientFormData = z.infer<typeof patientSchema>;
+import { useFormInitialization } from '@/hooks/useFormInitialization';
 
 interface PatientFormProps {
   patientId?: string;
@@ -19,10 +14,7 @@ interface PatientFormProps {
 
 const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
   const router = useRouter();
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting, isDirty, isValid } } = useForm<PatientFormData>({
-    resolver: zodResolver(patientSchema),
-    mode: 'onChange',
-  });
+  const { control, handleSubmit, reset, formState: { errors, isSubmitting, isDirty, isValid } } = useFormInitialization();
 
   const { loading, error } = useFetchPatientData(patientId, reset);
   const { onSubmit, message } = useHandleFormSubmit(patientId, router);
@@ -30,15 +22,15 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <form onSubmit={handleSubmit(onSubmit)} className="bg-white shadow-lg rounded-lg px-8 pt-6 pb-8 mb-4">
-        <h2 className="text-3xl font-bold mb-6 text-center text-blue-600 border-b pb-4">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-white shadow-md rounded-lg px-6 pt-4 pb-6 mb-4">
+        <h2 className="text-2xl font-semibold mb-4 text-center text-blue-500 border-b pb-2">
           {patientId ? 'Update Patient Information' : 'New Patient Registration'}
         </h2>
         {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">{error}</div>}
         {message && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">{message}</div>}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputField
             control={control}
             name="givenName"
@@ -121,9 +113,9 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
           />
         </div>
 
-        <div className="flex items-center justify-between mt-8 border-t pt-6">
+        <div className="flex items-center justify-between mt-6 border-t pt-4">
           <button
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full focus:outline-none focus:shadow-outline flex items-center transition duration-300 ease-in-out"
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline flex items-center transition duration-300 ease-in-out"
             type="button"
             onClick={() => router.push('/patients')}
           >
@@ -131,7 +123,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
             Cancel
           </button>
           <button
-            className={`${isDirty && isValid ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-full focus:outline-none focus:shadow-outline flex items-center transition duration-300 ease-in-out`}
+            className={`${isDirty && isValid ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'} text-white font-semibold py-2 px-6 rounded-lg focus:outline-none focus:shadow-outline flex items-center transition duration-300 ease-in-out`}
             type="submit"
             disabled={isSubmitting || !isDirty || !isValid}
           >
@@ -145,4 +137,3 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId }) => {
 };
 
 export default PatientForm;
-
