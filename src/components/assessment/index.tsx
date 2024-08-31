@@ -17,7 +17,7 @@ const MedicalChart = () => {
 
   const patientData = usePatientData(patientId);
   const { transcript, transcriptRef, highlightText } = useTranscript();
-  const { observations, setObservations, isLoading } = useObservations(transcript, patientId);
+  const { observations, setObservations, isLoading, fetchObservations } = useObservations(transcript, patientId);
   const { submitToFHIR, isSubmitting, error } = useFHIRSubmission();
 
   const [originalObservations, setOriginalObservations] = useState([]);
@@ -54,6 +54,7 @@ const MedicalChart = () => {
       console.log('Changed Observations:', changedObservations, {originalObservations, observations});
       if (changedObservations.length > 0) {
         await submitToFHIR(changedObservations, patientId);
+        await fetchObservations(); // Refresh the observations after submission
       } else {
         console.log('No changes detected.');
       }
