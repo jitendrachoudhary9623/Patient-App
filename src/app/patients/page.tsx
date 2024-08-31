@@ -152,6 +152,18 @@ export default function PatientListPage() {
           {formatDate(value)}
         </div>
       ),
+    },
+    { 
+      Header: 'Action', 
+      accessor: (row: PatientResource) => "Assessment", 
+      Cell: ({ value, row }: { value: string; row: { original: PatientResource } }) => (
+        <button 
+          className="cursor-pointer"
+          onClick={() => router.push(`/patients/${row.original.id}/assessment`)}
+        >
+          View Assessment
+        </button>
+      ),
     }
   ], [router]);
 
