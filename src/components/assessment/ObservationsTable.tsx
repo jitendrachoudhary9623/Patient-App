@@ -56,8 +56,9 @@ const TableContent = ({ items, handleInputChange, handleInputFocus }) => (
               {item.history[historyIndex] && (
                 <>
                   <div>{item.history[historyIndex].value}</div>
-                  <div className="text-gray-500">{item.history[historyIndex].date}</div>
-                </>
+                <div className="text-gray-500">
+                  {new Date(item.history[historyIndex].date).toLocaleDateString()} {new Date(item.history[historyIndex].date).toLocaleTimeString()}
+                </div>                </>
               )}
             </td>
           ))}
