@@ -10,12 +10,13 @@ import { PatientInfo } from './PatientInfo';
 import { Recording } from './Recording';
 import { Transcript } from './Transcript';
 import { ObservationsTable } from './ObservationsTable';
+import useGetPatientData from '@/hooks/useGetPatientData';
 
 const MedicalChart = () => {
   const params = useParams();
   const patientId = params.id as string;
 
-  const patientData = usePatientData(patientId);
+  const {loading, error : patientError , patient} = useGetPatientData(patientId);
   const { transcript, transcriptRef, highlightText } = useTranscript();
   const { observations, setObservations, isLoading, fetchObservations } = useObservations(transcript, patientId);
   const { submitToFHIR, isSubmitting, error } = useFHIRSubmission();
@@ -81,7 +82,7 @@ const MedicalChart = () => {
 
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
-      <PatientInfo patientData={patientData} />
+      <PatientInfo patientData={patient} loading={loading}/>
 
       <div className="grid grid-cols-4 gap-4">
         <div className="space-y-4">
